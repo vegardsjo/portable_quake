@@ -98,7 +98,7 @@ int NUM_FOR_EDICT(edict_t *e);
 
 //============================================================================
 
-#define	G_FLOAT(o) (pr_globals[o])
+#define	G_FLOAT(o) (*(float*)&pr_globals[o])
 #define	G_INT(o) (*(int *)&pr_globals[o])
 #define	G_EDICT(o) ((edict_t *)((byte *)sv.edicts+ *(int *)&pr_globals[o]))
 #define G_EDICTNUM(o) NUM_FOR_EDICT(G_EDICT(o))

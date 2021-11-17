@@ -20,6 +20,7 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // sv_main.c -- server main program
 
 #include "quakedef.h"
+#include <string.h>
 
 server_t		sv;
 server_static_t	svs;
@@ -1129,7 +1130,10 @@ void SV_SpawnServer (char *server)
 	ent = EDICT_NUM(0);
 	memset (&ent->v, 0, progs->entityfields * 4);
 	ent->free = false;
-	ent->v.model = sv.worldmodel->name - pr_strings;
+	unsigned long len = strlen(sv.worldmodel->name) + 1;
+	char *a = Hunk_Alloc(len);
+	memcpy(a, sv.worldmodel->name, len);
+	ent->v.model = a - pr_strings;
 	ent->v.modelindex = 1;		// world model
 	ent->v.solid = SOLID_BSP;
 	ent->v.movetype = MOVETYPE_PUSH;

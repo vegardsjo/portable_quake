@@ -1,11 +1,9 @@
 cmake_minimum_required(VERSION 3.0)
 project(quake)
 
-find_package(sdl REQUIRED)
+find_package(SDL REQUIRED)
 include_directories(${SDL_INCLUDE_DIR})
-
-add_definitions(-D__WIN32__)
-add_definitions(-D_CRT_SECURE_NO_WARNINGS)
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O0 -ggdb")
 
 set(SOURCES
 	source/adivtab.h
@@ -25,7 +23,6 @@ set(SOURCES
 	source/cmd.h
 	source/common.c
 	source/common.h
-	source/conproc.h
 	source/console.c
 	source/console.h
 	source/crc.c
@@ -118,9 +115,10 @@ set(SOURCES
 	source/snd_null.c
 	source/cd_null.c
 	source/net_none.c
-    source/port_sdl.c
-    source/port.h
-	)
+	source/port_sdl.c
+	source/port.h
+)
 
 add_executable(quake ${SOURCES})
 target_link_libraries(quake ${SDL_LIBRARY})
+target_link_libraries(quake m)

@@ -539,7 +539,7 @@ void Draw_ConsoleBackground (int lines)
 	conback = Draw_CachePic ("gfx/conback.lmp");
 
 // hack the version number directly into the pic
-	sprintf (ver, "(WinQuake) %4.2f", (float)VERSION);
+	sprintf (ver, "(Portable Quake) %4.2f", (float)VERSION);
 	dest = conback->data + 320*186 + 320 - 11 - 8*strlen(ver);
 
 	for (x=0 ; x<strlen(ver) ; x++)

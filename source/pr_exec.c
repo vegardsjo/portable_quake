@@ -81,12 +81,12 @@ char *pr_opnames[] =
 "LT",
 "GT", 
 
-"INDIRECT",
-"INDIRECT",
-"INDIRECT", 
-"INDIRECT", 
-"INDIRECT",
-"INDIRECT", 
+"LOAD_F",
+"LOAD_V",
+"LOAD_S",
+"LOAD_ENT",
+"LOAD_FLD",
+"LOAD_FNC",
 
 "ADDRESS", 
 

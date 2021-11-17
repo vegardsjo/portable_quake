@@ -57,7 +57,7 @@ typedef struct
 	func_t	ClientDisconnect;
 	func_t	SetNewParms;
 	func_t	SetChangeParms;
-} globalvars_t;
+} __attribute__((packed)) globalvars_t;
 
 typedef struct
 {
@@ -138,6 +138,6 @@ typedef struct
 	string_t	noise1;
 	string_t	noise2;
 	string_t	noise3;
-} entvars_t;
+}  __attribute__((packed)) entvars_t;
 
 #define PROGHEADER_CRC 5927

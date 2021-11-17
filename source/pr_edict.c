@@ -712,7 +712,7 @@ char *ED_NewString (char *string)
 		else
 			*new_p++ = string[i];
 	}
-	
+
 	return new;
 }
 

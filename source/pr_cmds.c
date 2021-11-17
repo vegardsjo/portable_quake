@@ -889,12 +889,15 @@ void PF_dprint (void)
 	Con_DPrintf ("%s",PF_VarString(0));
 }
 
-char	pr_string_temp[128];
+char *pr_string_temp = NULL;
 
 void PF_ftos (void)
 {
 	float	v;
 	v = G_FLOAT(OFS_PARM0);
+	if (!pr_string_temp) {
+		pr_string_temp = Hunk_Alloc(128);
+	}
 	
 	if (v == (int)v)
 		sprintf (pr_string_temp, "%d",(int)v);

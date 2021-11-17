@@ -4,7 +4,7 @@
 #include "d_local.h"
 #include "port.h"
 
-viddef_t    vid;                // global video state
+extern viddef_t    vid;                // global video state
 unsigned short  d_8to16table[256];
 
 // The original defaults
@@ -22,8 +22,8 @@ static float   mouse_x, mouse_y;
 static int mouse_oldbuttonstate = 0;
 
 // No support for option menus
-void (*vid_menudrawfn)(void) = NULL;
-void (*vid_menukeyfn)(int key) = NULL;
+extern void (*vid_menudrawfn)(void);
+extern void (*vid_menukeyfn)(int key);
 
 static byte palette[256 * 3];
 
