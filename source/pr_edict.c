@@ -20,10 +20,139 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 // sv_edict.c -- entity dictionary
 
 #include "quakedef.h"
+#include <stdint.h>
+
+#define FNV_PRIME 16777619lu
+#define FNV_OFFSET_BASIS 2166136261lu
+
+uint32_t fnv1_hash(const unsigned char *key, size_t key_len) {
+	uint32_t hash =  FNV_OFFSET_BASIS;
+	for (size_t i = 0; i < key_len; i++) {
+		hash *= FNV_PRIME;
+		hash ^= (uint32_t)(unsigned char)(key[i]);
+	}
+
+	return hash;
+}
+
+typedef struct {
+	const char **entries;
+	uint32_t capacity;
+	uint32_t length;
+} hs_t;
+
+hs_t *hs_create(uint32_t capacity) {
+	hs_t *hs = calloc(1, sizeof(hs_t));
+	hs->entries = calloc(capacity, sizeof(unsigned char *));
+	hs->capacity = capacity;
+
+	return hs;
+}
+
+void hs_clear(hs_t *hs) {
+	for (uint32_t i = 0; i < hs->capacity; i++) {
+		if (hs->entries[i]) {
+			free((void *)hs->entries[i]);
+		}
+	}
+
+	hs->length = 0;
+}
+
+uint32_t hs_add(hs_t *hs, const char *value) {
+	assert(hs->length < hs->capacity);
+
+	size_t value_len = strlen(value);
+	uint32_t hash = fnv1_hash((const unsigned char *)value, value_len);
+	uint32_t index = hash % hs->capacity;
+
+	while (hs->entries[index] != NULL) {
+		if (!memcmp(value, hs->entries[index], value_len)) {
+			/* printf("Found previously stored ex string \"%s\" at internal %u\n", value, index); */
+			return index;
+		}
+
+		index++;
+		if (index >= hs->capacity) {
+			index = 0;
+		}
+	}
+
+	hs->entries[index] = value;
+	return index;
+}
+
+const char *hs_get_from_index(hs_t *hs, size_t index) {
+	return hs->entries[index];
+}
+
+struct {
+	char *globals;
+	uint32_t globals_size;
+	hs_t *ex;
+} pr_strings;
+
+static void pr_init_strings(char *globals, uint32_t globals_size, uint32_t ex_strings_capacity) {
+	pr_strings.globals = globals;
+	pr_strings.globals_size = globals_size;
+	pr_strings.ex = hs_create(ex_strings_capacity);
+}
+
+void pr_clear_ex_strings(void) {
+	if (pr_strings.ex) {
+		hs_clear(pr_strings.ex);
+	}
+}
+
+char *pr_get_string(uint32_t offset) {
+	if (offset >= pr_strings.globals_size + pr_strings.ex->capacity) {
+		fprintf(stderr, "Tried to access string outside of pr_strings: %u\n", offset);
+		abort();
+	}
+
+	if (offset >= pr_strings.globals_size) {
+		const char *string = hs_get_from_index(pr_strings.ex, offset - pr_strings.globals_size);
+		/* printf("Get ex string \"%s\" at %u\n", string, offset - pr_strings.globals_size); */
+		return (char *)string;
+	}
+
+	/* printf("Get pr string \"%s\" at %u\n", pr_string_table.pr_strings + (ptrdiff_t)offset, offset); */
+	return pr_strings.globals + (ptrdiff_t)offset;
+}
+
+uint32_t pr_add_ex_string(char *string) {
+	uint32_t offset = hs_add(pr_strings.ex, strdup(string)) + pr_strings.globals_size;
+	printf("Add ex string \"%s\" at %u\n", string, offset);
+	return offset;
+}
+
+uint32_t pr_add_ex_string_newlines(char *string) {
+	size_t l_st = strlen(string) + 1;
+	assert(l_st < 1llu << 32);
+	uint32_t l = (uint32_t) l_st;
+
+    char *new = calloc(l, sizeof(char));
+	char *new_p = new;
+
+	for (uint32_t i = 0; i < l; i++) {
+		if (string[i] == '\\' && i < l-1) {
+			i++;
+			if (string[i] == 'n')
+				*new_p++ = '\n';
+			else
+				*new_p++ = '\\';
+		}
+		else
+			*new_p++ = string[i];
+	}
+
+	uint32_t ret = pr_add_ex_string(new);
+	free(new);
+	return ret;
+}
 
 dprograms_t		*progs;
 dfunction_t		*pr_functions;
-char			*pr_strings;
 ddef_t			*pr_fielddefs;
 ddef_t			*pr_globaldefs;
 dstatement_t	*pr_statements;
@@ -191,7 +320,7 @@ ddef_t *ED_FindField (char *name)
 	for (i=0 ; i<progs->numfielddefs ; i++)
 	{
 		def = &pr_fielddefs[i];
-		if (!strcmp(pr_strings + def->s_name,name) )
+		if (!strcmp(pr_get_string(def->s_name), name) )
 			return def;
 	}
 	return NULL;
@@ -211,7 +340,7 @@ ddef_t *ED_FindGlobal (char *name)
 	for (i=0 ; i<progs->numglobaldefs ; i++)
 	{
 		def = &pr_globaldefs[i];
-		if (!strcmp(pr_strings + def->s_name,name) )
+		if (!strcmp(pr_get_string(def->s_name), name))
 			return def;
 	}
 	return NULL;
@@ -231,7 +360,7 @@ dfunction_t *ED_FindFunction (char *name)
 	for (i=0 ; i<progs->numfunctions ; i++)
 	{
 		func = &pr_functions[i];
-		if (!strcmp(pr_strings + func->s_name,name) )
+		if (!strcmp(pr_get_string(func->s_name), name))
 			return func;
 	}
 	return NULL;
@@ -288,18 +417,18 @@ char *PR_ValueString (etype_t type, eval_t *val)
 	switch (type)
 	{
 	case ev_string:
-		sprintf (line, "%s", pr_strings + val->string);
+		sprintf (line, "%s", pr_get_string(val->string));
 		break;
 	case ev_entity:	
 		sprintf (line, "entity %i", NUM_FOR_EDICT(PROG_TO_EDICT(val->edict)) );
 		break;
 	case ev_function:
 		f = pr_functions + val->function;
-		sprintf (line, "%s()", pr_strings + f->s_name);
+		sprintf (line, "%s()", pr_get_string(f->s_name));
 		break;
 	case ev_field:
 		def = ED_FieldAtOfs ( val->_int );
-		sprintf (line, ".%s", pr_strings + def->s_name);
+		sprintf (line, ".%s", pr_get_string(def->s_name));
 		break;
 	case ev_void:
 		sprintf (line, "void");
@@ -340,18 +469,18 @@ char *PR_UglyValueString (etype_t type, eval_t *val)
 	switch (type)
 	{
 	case ev_string:
-		sprintf (line, "%s", pr_strings + val->string);
+		sprintf (line, "%s", pr_get_string(val->string));
 		break;
 	case ev_entity:	
 		sprintf (line, "%i", NUM_FOR_EDICT(PROG_TO_EDICT(val->edict)));
 		break;
 	case ev_function:
 		f = pr_functions + val->function;
-		sprintf (line, "%s", pr_strings + f->s_name);
+		sprintf (line, "%s", pr_get_string(f->s_name));
 		break;
 	case ev_field:
 		def = ED_FieldAtOfs ( val->_int );
-		sprintf (line, "%s", pr_strings + def->s_name);
+		sprintf (line, "%s", pr_get_string(def->s_name));
 		break;
 	case ev_void:
 		sprintf (line, "void");
@@ -393,7 +522,7 @@ char *PR_GlobalString (int ofs)
 	else
 	{
 		s = PR_ValueString (def->type, val);
-		sprintf (line,"%i(%s)%s", ofs, pr_strings + def->s_name, s);
+		sprintf (line, "%i(%s)%s", ofs, pr_get_string(def->s_name), s);
 	}
 	
 	i = strlen(line);
@@ -414,7 +543,7 @@ char *PR_GlobalStringNoContents (int ofs)
 	if (!def)
 		sprintf (line,"%i(???)", ofs);
 	else
-		sprintf (line,"%i(%s)", ofs, pr_strings + def->s_name);
+		sprintf (line,"%i(%s)", ofs, pr_get_string(def->s_name));
 	
 	i = strlen(line);
 	for ( ; i<20 ; i++)
@@ -451,7 +580,7 @@ void ED_Print (edict_t *ed)
 	for (i=1 ; i<progs->numfielddefs ; i++)
 	{
 		d = &pr_fielddefs[i];
-		name = pr_strings + d->s_name;
+		name = pr_get_string(d->s_name);
 		if (name[strlen(name)-2] == '_')
 			continue;	// skip _x, _y, _z vars
 			
@@ -501,7 +630,7 @@ void ED_Write (FILE *f, edict_t *ed)
 	for (i=1 ; i<progs->numfielddefs ; i++)
 	{
 		d = &pr_fielddefs[i];
-		name = pr_strings + d->s_name;
+		name = pr_get_string(d->s_name);
 		if (name[strlen(name)-2] == '_')
 			continue;	// skip _x, _y, _z vars
 			
@@ -634,7 +763,7 @@ void ED_WriteGlobals (FILE *f)
 		&& type != ev_entity)
 			continue;
 
-		name = pr_strings + def->s_name;		
+		name = pr_get_string(def->s_name);
 		fprintf (f,"\"%s\" ", name);
 		fprintf (f,"\"%s\"\n", PR_UglyValueString(type, (eval_t *)&pr_globals[def->ofs]));		
 	}
@@ -684,39 +813,6 @@ void ED_ParseGlobals (char *data)
 
 //============================================================================
 
-
-/*
-=============
-ED_NewString
-=============
-*/
-char *ED_NewString (char *string)
-{
-	char	*new, *new_p;
-	int		i,l;
-	
-	l = strlen(string) + 1;
-	new = Hunk_Alloc (l);
-	new_p = new;
-
-	for (i=0 ; i< l ; i++)
-	{
-		if (string[i] == '\\' && i < l-1)
-		{
-			i++;
-			if (string[i] == 'n')
-				*new_p++ = '\n';
-			else
-				*new_p++ = '\\';
-		}
-		else
-			*new_p++ = string[i];
-	}
-
-	return new;
-}
-
-
 /*
 =============
 ED_ParseEval
@@ -739,7 +835,7 @@ qboolean	ED_ParseEpair (void *base, ddef_t *key, char *s)
 	switch (key->type & ~DEF_SAVEGLOBAL)
 	{
 	case ev_string:
-		*(string_t *)d = ED_NewString (s) - pr_strings;
+		*(string_t *)d = pr_add_ex_string_newlines(s);
 		break;
 		
 	case ev_float:
@@ -959,7 +1055,7 @@ void ED_LoadFromFile (char *data)
 		}
 
 	// look for the spawn function
-		func = ED_FindFunction ( pr_strings + ent->v.classname );
+		func = ED_FindFunction ( pr_get_string(ent->v.classname) );
 
 		if (!func)
 		{
@@ -1010,7 +1106,8 @@ void PR_LoadProgs (void)
 		Sys_Error ("progs.dat system vars have been modified, progdefs.h is out of date");
 
 	pr_functions = (dfunction_t *)((byte *)progs + progs->ofs_functions);
-	pr_strings = (char *)progs + progs->ofs_strings;
+
+	pr_init_strings((char *)progs + progs->ofs_strings, progs->numstrings, 1 << 15);
 	pr_globaldefs = (ddef_t *)((byte *)progs + progs->ofs_globaldefs);
 	pr_fielddefs = (ddef_t *)((byte *)progs + progs->ofs_fielddefs);
 	pr_statements = (dstatement_t *)((byte *)progs + progs->ofs_statements);

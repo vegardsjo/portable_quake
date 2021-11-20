@@ -36,11 +36,19 @@ Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA  02111-1307, USA.
 #define	GAMENAME	"id1"
 
 #include <math.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <string.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <setjmp.h>
+#include <assert.h>
+
+char *pr_get_string(uint32_t offset);
+uint32_t pr_add_ex_string(char *string);
+uint32_t pr_add_ex_string_newlines(char *string);
+void pr_clear_ex_strings(void);
 
 #define __i386__	1
 
