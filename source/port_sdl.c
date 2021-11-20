@@ -11,6 +11,9 @@
 
 static SDL_Surface *screen;
 
+extern float mouse_x;
+extern float mouse_y;
+extern int mouse_oldbuttonstate;
 
 bool port_init(int width, int height) {
 
@@ -72,6 +75,16 @@ void port_tick(void) {
   while (SDL_PollEvent(&event))
   {
     switch (event.type) {
+    case SDL_MOUSEBUTTONDOWN:
+    case SDL_MOUSEBUTTONUP:
+      Key_Event(K_MOUSE1, event.button.state & SDL_BUTTON(1));
+      Key_Event(K_MOUSE2, event.button.state & SDL_BUTTON(2));
+      Key_Event(K_MOUSE3, event.button.state & SDL_BUTTON(3));
+      break;
+    case SDL_MOUSEMOTION:
+      mouse_x += event.motion.xrel;
+      mouse_y += event.motion.yrel;
+      break;
 
     case SDL_KEYDOWN:
     case SDL_KEYUP:

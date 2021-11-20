@@ -11,15 +11,15 @@ unsigned short  d_8to16table[256];
 //#define    BASEWIDTH    320
 //#define    BASEHEIGHT   200
 // Much better for high resolution displays
-#define    BASEWIDTH    (320)
-#define    BASEHEIGHT   (200)
+#define    BASEWIDTH    (480)
+#define    BASEHEIGHT   (270)
 
 int    VGA_width, VGA_height, VGA_rowbytes, VGA_bufferrowbytes = 0;
 byte    *VGA_pagebase;
 
-static qboolean mouse_avail;
-static float   mouse_x, mouse_y;
-static int mouse_oldbuttonstate = 0;
+static qboolean mouse_avail = true;
+float   mouse_x = 0.0, mouse_y = 0.0;
+int mouse_oldbuttonstate = 0;
 
 // No support for option menus
 extern void (*vid_menudrawfn)(void);
@@ -163,7 +163,6 @@ void IN_Commands (void)
 
 void IN_Move (usercmd_t *cmd)
 {
-#if 0
     if (!mouse_avail)
         return;
    
@@ -190,7 +189,6 @@ void IN_Move (usercmd_t *cmd)
             cmd->forwardmove -= m_forward.value * mouse_y;
     }
     mouse_x = mouse_y = 0.0;
-#endif
 }
 
 /*
